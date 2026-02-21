@@ -9,5 +9,7 @@ namespace PsyClinic.Infrasctructure.Models
 {
     public class User : IdentityUser
     {
+        public required string FederalRegistration { get; set; }
+        public required string Name { get; set; }
     }
 }
