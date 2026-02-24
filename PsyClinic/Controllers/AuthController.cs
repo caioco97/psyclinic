@@ -25,7 +25,6 @@ public class AuthController : ControllerBase
         _jwtTokenService = jwtTokenService;
     }
 
-    [EnableCors("AllowOrigin")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RequestUserViewModel request)
     {
@@ -49,25 +48,45 @@ public class AuthController : ControllerBase
                 response.Errors.Add(IdentityErrorTranslator.Translate(error.Code));
             }
 
-            return BadRequest(response);
+            return BadRequest(new ResponseUserViewModel
+            {
+                Status = true,
+                Code = 400,
+                Errors = response.Errors
+            });
         }
 
-        return Created("", new { Message = "Usuário criado com sucesso!" });
+        return Ok(new ResponseUserViewModel
+        {
+            Message = "Usuário criado com sucesso!",
+            Status = true,
+            Code = 200
+        });
     }
 
-    [EnableCors("AllowOrigin")]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
-            return Unauthorized("Usuário ou senha inválidos.");
+            return Unauthorized(
+                new ResponseUserViewModel
+                {
+                    Message = "Usuário ou senha inválidos.",
+                    Status = true,
+                    Code = 401
+                });
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
 
         if (!result.Succeeded)
-            return Unauthorized("Usuário ou senha inválidos.");
+            return Unauthorized(new ResponseUserViewModel
+            {
+                Message = "Usuário ou senha inválidos.",
+                Status = true,
+                Code = 401
+            });
 
         var token = _jwtTokenService.GenerateToken(user);
 
@@ -75,25 +94,33 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTimeOffset.UtcNow.AddMinutes(60)
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.Now.AddMinutes(60),
+            Path = "/"
         };
 
         Response.Cookies.Append("access_token", token, cookieOptions);
 
-        return Ok(new
+        return Ok(new ResponseUserViewModel
         {
-            Message = "Login realizado com sucesso",
-            user.Email,
-            user.UserName
+            Message = "Login realizado com sucesso!",
+            Status = true,
+            Code = 200,
+            Email = user.Email,
+            UserName = user.UserName
         });
     }
 
-    [EnableCors("AllowOrigin")]
     [HttpPost("logout")]
     public IActionResult Logout()
     {
         Response.Cookies.Delete("access_token");
-        return NoContent();
+
+        return Ok(new ResponseUserViewModel
+        {
+            Message = "Você saiu do sistema!",
+            Status = true,
+            Code = 200
+        });
     }
 }
